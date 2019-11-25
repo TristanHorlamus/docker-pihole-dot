@@ -1,0 +1,76 @@
+version: "2.4"
+
+#
+# [ services definition ]
+#
+services:
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+      - "80:80/tcp"
+      - "443:443/tcp"
+    environment:
+      DNS1: 10.5.0.2
+      DNS2: 10.5.0.3
+      TZ: ${TIMEZONE:-America/New_York}
+      WEBPASSWORD: ${WEBPASSWORD:?"Password for pihole undefined. open .env to set password"}
+    volumes:
+       - 'pihole/pihole:/etc/pihole/'
+       - 'pihole/etc/dnsmasq.d/:/etc/dnsmasq.d/'
+       - 'pihole/var/log/:/var/log/'
+    dns:
+      - 127.0.0.1
+      - 192.168.1.1
+    restart: always
+    networks:
+      dnsbridge:
+        ipv4_address: 10.5.0.4
+
+  cloudflare-dns-tls:
+    container_name: cloudflare-dns-tls
+    image: qmcgaw/cloudflare-dns-server
+    environment:
+      - VERBOSITY=0
+      - VERBOSITY_DETAILS=0
+      - BLOCK_MALICIOUS=off # BLOCK_MALICIOUS could be turned on
+      - LISTENINGPORT=53
+      - PROVIDER=cloudflare
+    restart: always
+    networks:
+      dnsbridge:
+        ipv4_address : 10.5.0.2
+
+  google-dns-tls:
+    container_name: google-dns-tls
+    image: qmcgaw/cloudflare-dns-server
+    environment:
+      - VERBOSITY=0
+      - VERBOSITY_DETAILS=0
+      - BLOCK_MALICIOUS=off # BLOCK_MALICIOUS could be turned on
+      - LISTENINGPORT=53
+      - PROVIDER=google
+    restart: always
+    networks:
+      dnsbridge:
+        ipv4_address: 10.5.0.3
+#
+# [ networks definition ]
+#
+networks:
+  dnsbridge:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.5.0.0/16
+
+#
+# [ volumes definition ]
+#
+volumes:
+  pihole:
+    driver: local
