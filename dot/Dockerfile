@@ -1,0 +1,1 @@
+FROM qmcgaw/cloudflare-dns-server:latest

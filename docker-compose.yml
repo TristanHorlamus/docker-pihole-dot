@@ -6,7 +6,7 @@ version: "2.4"
 services:
   pihole:
     container_name: pihole
-    image: pihole/pihole:latest
+    build: pihole
     ports:
       - "53:53/tcp"
       - "53:53/udp"
@@ -19,9 +19,9 @@ services:
       TZ: ${TIMEZONE:-America/New_York}
       WEBPASSWORD: ${WEBPASSWORD:?"Password for pihole undefined. open .env to set password"}
     volumes:
-       - 'pihole/pihole:/etc/pihole/'
-       - 'pihole/etc/dnsmasq.d/:/etc/dnsmasq.d/'
-       - 'pihole/var/log/:/var/log/'
+       - 'pihole_pihole:/etc/pihole/'
+       - 'pihole_dnsmasq:/etc/dnsmasq.d/'
+       - 'pihole_log:/var/log/'
     dns:
       - 127.0.0.1
       - 192.168.1.1
@@ -32,7 +32,7 @@ services:
 
   cloudflare-dns-tls:
     container_name: cloudflare-dns-tls
-    image: qmcgaw/cloudflare-dns-server
+    build: dot
     environment:
       - VERBOSITY=0
       - VERBOSITY_DETAILS=0
@@ -46,7 +46,7 @@ services:
 
   google-dns-tls:
     container_name: google-dns-tls
-    image: qmcgaw/cloudflare-dns-server
+    build: dot
     environment:
       - VERBOSITY=0
       - VERBOSITY_DETAILS=0
@@ -57,6 +57,39 @@ services:
     networks:
       dnsbridge:
         ipv4_address: 10.5.0.3
+
+  portainer:
+    container_name: portainer
+    build: portainer
+    ports:
+      - "8443:9000"
+      - "8000:8000"
+    restart: always
+    volumes:
+      - portainer_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  watcher:
+    container_name: watcher
+    image: v2tec/watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  bench-security:
+    container_name: bench-security
+    image: docker/docker-bench-security
+    cap_add:
+        - audit_control
+    labels:
+        - docker_bench_security
+    network_mode: "host"
+    pid: host
+    stdin_open: true
+    tty: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
 #
 # [ networks definition ]
 #
@@ -72,5 +105,11 @@ networks:
 # [ volumes definition ]
 #
 volumes:
-  pihole:
+  pihole_pihole:
+    driver: local
+  pihole_dnsmasq:
+    driver: local
+  pihole_log:
+    driver: local
+  portainer_data:
     driver: local
